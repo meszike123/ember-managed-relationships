@@ -1,5 +1,5 @@
 {
-  "name": "dependent-relationships",
+  "name": "ember-managed-relationships",
   "dependencies": {
     "ember": "~2.4.1",
     "ember-cli-shims": "0.1.0",

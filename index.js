@@ -2,5 +2,6 @@
 'use strict';
 
 module.exports = {
-  name: 'dependent-relationships'
+  name: 'ember-managed-relationships',
+
 };
