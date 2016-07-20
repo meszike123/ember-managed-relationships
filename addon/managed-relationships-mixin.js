@@ -6,9 +6,9 @@ function isRelationshipManaged(relationship){
 }
 
 export default Ember.Mixin.create({
-	/* Properties */
-	isDirty: Ember.computed('hasDirtyAttributes', '_hasDirtyRelationshipReference', function(){
-		return this.get('hasDirtyAttributes') || this.get('_hasDirtyRelationshipReference');
+	/* Public API changes */
+	isDirty: Ember.computed('hasDirtyAttributes', '_hasDirtyRelationships', function(){
+		return this.get('hasDirtyAttributes') || this.get('_hasDirtyRelationships');
 	}),
 
 	rollback(){
@@ -25,6 +25,8 @@ export default Ember.Mixin.create({
 		})
 	},
 
+	/* private API */
+
 	_rollbackRelationshipReferences (){
 		this.eachRelationship((name, relationship) => {
 			if (relationship.options.checkReference  || relationship.options.managed){
@@ -40,7 +42,7 @@ export default Ember.Mixin.create({
 		});
 	},
 
-	_rollbackBelongsToRelation(name, managed){
+	_rollbackBelongsToRelation(name){
 		let relationship = this.belongsTo(name).belongsToRelationship;
 		if (relationship.hasLoaded && this._isBelongsToDirty(relationship)){
 			let originalValue = null;
@@ -83,6 +85,10 @@ export default Ember.Mixin.create({
 		const related = Ember.A();
 
 		this.eachRelationship((name, relationship) => {
+			if (!relationship.options.async){
+				console.error('This addon will not work with sync relationships');
+			}
+
 			if (relationship.options.checkReference || relationship.options.managed){
 				let relationshipData = {
 					name: name,
@@ -91,17 +97,17 @@ export default Ember.Mixin.create({
 				}
 
 				if (relationship.kind == 'hasMany'){
-					relationshipData.key = [`${name}.[]`];
+					relationshipData.keys = [`${name}.[]`];
 
 					if (relationshipData.managed){
-						relationshipData.key.push(`${name}.@each.isDirty`);
+						relationshipData.keys.push(`${name}.@each.isDirty`);
 					} 
 
 				} else if (relationship.kind =='belongsTo'){
-					relationshipData.key = [name];
+					relationshipData.keys = [name];
 
 					if (relationshipData.managed){
-						relationshipData.key.push(`${name}.isDirty`);
+						relationshipData.keys.push(`${name}.isDirty`);
 					}
 
 				} else {
@@ -112,7 +118,7 @@ export default Ember.Mixin.create({
 		});
 
 		if (!Ember.isEmpty(related)){
-			Ember.defineProperty(this, '_hasDirtyRelationshipReference', Ember.computed.apply(null, [...flatten(related.mapBy('key')), function(){
+			Ember.defineProperty(this, '_hasDirtyRelationships', Ember.computed.apply(null, [...flatten(related.mapBy('keys')), function(){
 				return this._isAtLeastOneBelongsToDirty(related) || this._isAtLeastOneHasManyDirty(related);
 			}]));
 		}
@@ -142,10 +148,6 @@ export default Ember.Mixin.create({
 	_isBelongsToDirty(belongsToRelationship){
 		//Working just on async relations 
 	 	let currentValue = this.get(belongsToRelationship.key).content;
-
-	 	function isManaged(){
-	 		return isRelationshipManaged(belongsToRelationship);
-	 	}
 	 	
 	 	function isReferenceChanged(){
 	 		if (belongsToRelationship.canonicalState){
@@ -158,26 +160,22 @@ export default Ember.Mixin.create({
 	 	function isTheManegedEntityDirty(){
 	 		return currentValue.get('isDirty');
 	 	}
-	 	return isManaged() ? isReferenceChanged() || isTheManegedEntityDirty() : isReferenceChanged();
+		
+		return isRelationshipManaged(belongsToRelationship) ? isReferenceChanged() || isTheManegedEntityDirty() : isReferenceChanged();
 	},
 
 	_isHasManyDirty(hasManyRelationship){
 		//Working just on async relations 
 	 	let currentValue = this.get(hasManyRelationship.key).content;
-
-	 	function isManaged(){
-	 		return isRelationshipManaged(hasManyRelationship);
-	 	}
 	 	
 	 	function isReferenceChanged(){
 	 		return hasManyRelationship.canonicalState.length !== currentValue.length || Ember.A(hasManyRelationship.canonicalState).any((e, i) => e === currentValue[i]);
 	 	}
 
 	 	function isTheManegedEntityDirty(){
-
 	 		return currentValue.any(model => model.get('isDirty') );
 	 	}
-	 	return isManaged() ? isReferenceChanged() || isTheManegedEntityDirty() : isReferenceChanged();
+	 	return isRelationshipManaged(hasManyRelationship) ? isReferenceChanged() || isTheManegedEntityDirty() : isReferenceChanged();
 
 	 	
 	},
