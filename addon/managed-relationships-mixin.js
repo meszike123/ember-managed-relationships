@@ -13,7 +13,7 @@ export default Ember.Mixin.create({
 
 	rollback(){
 		this.rollbackAttributes();
-		this._rollbackRelationshipReferences();
+		this._rollbackRelationships();
 	},
 
 	save(...args){
@@ -27,9 +27,9 @@ export default Ember.Mixin.create({
 
 	/* private API */
 
-	_rollbackRelationshipReferences (){
+	_rollbackRelationships(){
 		this.eachRelationship((name, relationship) => {
-			if (relationship.options.checkReference  || relationship.options.managed){
+			if (relationship.options.referenced  || relationship.options.managed){
 				if (relationship.kind == 'hasMany'){
 					this._rollbackHasManyRelation(name);
 				} else if (relationship.kind =='belongsTo'){
@@ -81,7 +81,7 @@ export default Ember.Mixin.create({
 		}
 	},
 
-	_defineRelationshipComputedPropert: Ember.on('init', function(){
+	_defineRelationshipComputedProperty: Ember.on('init', function(){
 		const related = Ember.A();
 
 		this.eachRelationship((name, relationship) => {
@@ -89,7 +89,7 @@ export default Ember.Mixin.create({
 				console.error('This addon will not work with sync relationships');
 			}
 
-			if (relationship.options.checkReference || relationship.options.managed){
+			if (relationship.options.referenced || relationship.options.managed){
 				let relationshipData = {
 					name: name,
 					kind: relationship.kind,
