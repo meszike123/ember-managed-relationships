@@ -16,6 +16,15 @@ export default Ember.Mixin.create({
 		this._rollbackRelationshipReferences();
 	},
 
+	save(...args){
+		return this._super(...args).then( savedModel => {
+			// Because we need unstain managed records
+			savedModel.rollback();
+
+			return savedModel;
+		})
+	},
+
 	_rollbackRelationshipReferences (){
 		this.eachRelationship((name, relationship) => {
 			if (relationship.options.checkReference  || relationship.options.managed){
