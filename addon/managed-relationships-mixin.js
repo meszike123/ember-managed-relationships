@@ -85,11 +85,11 @@ export default Ember.Mixin.create({
 		const related = Ember.A();
 
 		this.eachRelationship((name, relationship) => {
-			if (!relationship.options.async){
-				console.error('This addon will not work with sync relationships');
-			}
-
 			if (relationship.options.referenced || relationship.options.managed){
+				if (!relationship.options.async){
+					throw new Error('Managed relationships mixin works only with async relationships');
+				}
+
 				let relationshipData = {
 					name: name,
 					kind: relationship.kind,
@@ -158,6 +158,9 @@ export default Ember.Mixin.create({
 	 	}
 
 	 	function isTheManegedEntityDirty(){
+	 		if (!currentValue){
+	 			return false;
+	 		}
 	 		return currentValue.get('isDirty');
 	 	}
 		
