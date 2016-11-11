@@ -31,6 +31,7 @@ export default Ember.Mixin.create({
 
     _commitModelAndManagedRelationships(commitThisModel = false){
         if (commitThisModel){
+        	this._internalModel.adapterWillCommit();
             this._internalModel.adapterDidCommit();
         }
 
