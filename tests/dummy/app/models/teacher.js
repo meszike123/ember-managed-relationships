@@ -5,6 +5,6 @@ import ManagedRelationshipsMixin from 'ember-managed-relationships/managed-relat
 
 export default Model.extend(ManagedRelationshipsMixin, {
   name:   attr     ('string'),
-  students: hasMany('student', {inverse: null, referenced: true}),
-  assistants: hasMany('student', {inverse: null, managed: true})
+  students: hasMany('student', {inverse: null, async: true, referenced: true}),
+  assistants: hasMany('student', {inverse: null, async: true, managed: true})
 });

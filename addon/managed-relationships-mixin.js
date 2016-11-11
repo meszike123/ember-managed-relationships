@@ -2,187 +2,236 @@ import Ember from 'ember';
 import flatten from './utils/flatten';
 
 function isRelationshipManaged(relationship){
-	return relationship.relationshipMeta.options.managed;
+    return relationship.relationshipMeta.options.managed;
 }
 
 export default Ember.Mixin.create({
-	/* Public API changes */
-	isDirty: Ember.computed('hasDirtyAttributes', '_hasDirtyRelationships', function(){
-		return this.get('hasDirtyAttributes') || this.get('_hasDirtyRelationships');
-	}),
+    /* Public API changes */
+    isDirty: Ember.computed('hasDirtyAttributes', '_hasDirtyRelationships', function(){
+        return this.get('hasDirtyAttributes') || this.get('_hasDirtyRelationships');
+    }),
 
-	rollback(){
-		this.rollbackAttributes();
-		this._rollbackRelationships();
-	},
+    rollback(){
+        if (this.get('hasDirtyAttributes')){
+            this.rollbackAttributes();
+        }
+        if (this.get('_hasDirtyRelationships')){
+            this._rollbackRelationships();
+        }
+    },
 
-	save(...args){
-		return this._super(...args).then( savedModel => {
-			// Because we need unstain managed records
-			savedModel.rollback();
+    save(...args){
+        return this._super(...args).then( savedModel => {
+            savedModel._commitModelAndManagedRelationships();
+            return savedModel;
+        })
+    },
 
-			return savedModel;
-		})
-	},
+    /* private API */
 
-	/* private API */
+    _commitModelAndManagedRelationships(commitThisModel = false){
+        if (commitThisModel){
+            this._internalModel.adapterDidCommit();
+        }
 
-	_rollbackRelationships(){
-		this.eachRelationship((name, relationship) => {
-			if (relationship.options.referenced  || relationship.options.managed){
-				if (relationship.kind == 'hasMany'){
-					this._rollbackHasManyRelation(name);
-				} else if (relationship.kind =='belongsTo'){
-					this._rollbackBelongsToRelation(name);
+        this.eachRelationship((name, relationship) => {
+            if (relationship.options.managed){
+                if (relationship.kind == 'hasMany'){
+                    this._commitManagedHasMany(name);
+                } else if (relationship.kind =='belongsTo'){
+                    this._commitManagedBelongsTo(name);
 
-				} else {
-					throw new Error(`this relationship type is not supported ${relationship.kind}`);
-				}
-			}
-		});
-	},
+                } else {
+                    throw new Error(`this relationship type is not supported ${relationship.kind}`);
+                }
+            }
+        });
+    },
 
-	_rollbackBelongsToRelation(name){
-		let relationship = this.belongsTo(name).belongsToRelationship;
-		if (relationship.hasLoaded && this._isBelongsToDirty(relationship)){
-			let originalValue = null;
-			if (relationship.canonicalState){
-				originalValue = this.store.peekRecord(relationship.canonicalState.modelName, relationship.canonicalState.id);
-			}
+    _commitManagedBelongsTo(name){
+        let currentValue = this.get(name).content;
+        debugger;
+        if (currentValue && currentValue._commitModelAndManagedRelationships){
+            currentValue._commitModelAndManagedRelationships(true);
+        }
+    },
 
-			let currentValue = this.get(name).content;
-			this.set(name, originalValue);
+    _commitManagedHasMany(name){
+        let currentValue = this.get(name).content;
+        if (currentValue){
+            currentValue.toArray().forEach((model) => {
+                if (model && model._commitModelAndManagedRelationships){
+                    model._commitModelAndManagedRelationships(true)
+                }
+            });
+        }
 
-			if (originalValue && isRelationshipManaged(relationship) && originalValue.get('isDirty')){
-				originalValue.rollback();
-			}
-		}
-	},
+    },
 
-	_rollbackHasManyRelation(name){
-		let relationship = this.hasMany(name).hasManyRelationship;
+    _rollbackRelationships(){
+        this.eachRelationship((name, relationship) => {
+            if (relationship.options.referenced  || relationship.options.managed){
+                if (relationship.kind == 'hasMany'){
+                    this._rollbackHasManyRelation(name);
+                } else if (relationship.kind =='belongsTo'){
+                    this._rollbackBelongsToRelation(name);
 
-		let currentValue = Ember.A(this.get(relationship.key).content);
+                } else {
+                    throw new Error(`this relationship type is not supported ${relationship.kind}`);
+                }
+            }
+        });
+    },
 
-		currentValue.clear();
+    _rollbackBelongsToRelation(name){
+        let relationship = this.belongsTo(name).belongsToRelationship;
+        if (relationship.hasLoaded && this._isBelongsToDirty(relationship)){
+            let originalValue = null;
+            if (relationship.canonicalState){
+                originalValue = this.store.peekRecord(relationship.canonicalState.modelName, relationship.canonicalState.id);
+            }
 
-		let originalValueIds = Ember.A(relationship.canonicalState.map(m => m.id));
+            let currentValue = this.get(name).content;
+            this.set(name, originalValue);
 
-		currentValue.addObjects(this.store.peekAll(relationship.belongsToType).filter(model => {
-			return originalValueIds.contains(model.id)
-		}));
+            if (originalValue && isRelationshipManaged(relationship) && originalValue.get('isDirty')){
+                originalValue.rollback();
+            }
+        }
+    },
 
-		if (isRelationshipManaged(relationship)){
-			currentValue.forEach( model => {
-				if (model.get('isDirty')){
-					model.rollback();
-				}
-			})	
-		}
-	},
+    _rollbackHasManyRelation(name){
+        let relationship = this.hasMany(name).hasManyRelationship;
 
-	_defineRelationshipComputedProperty: Ember.on('init', function(){
-		const related = Ember.A();
+        let currentValue = Ember.A(this.get(relationship.key).content);
 
-		this.eachRelationship((name, relationship) => {
-			if (relationship.options.referenced || relationship.options.managed){
-				if (!relationship.options.async){
-					throw new Error('Managed relationships mixin works only with async relationships');
-				}
+        currentValue.clear();
 
-				let relationshipData = {
-					name: name,
-					kind: relationship.kind,
-					managed: Boolean(relationship.options.managed)
-				}
 
-				if (relationship.kind == 'hasMany'){
-					relationshipData.keys = [`${name}.[]`];
 
-					if (relationshipData.managed){
-						relationshipData.keys.push(`${name}.@each.isDirty`);
-					} 
+        if (relationship.isPolymorphic){
+            let originalValueIdsAndTypes = Ember.A(relationship.canonicalState.map(m => {
+                return { id: m.id, type:m.modelName }
+            }));
+            originalValueIdsAndTypes.forEach((e) => {
+                currentValue.addObject(this.store.peekRecord(e.type, e.id));
+            })
+        } else {
+            let originalValueIds = Ember.A(relationship.canonicalState.map(m => m.id));
 
-				} else if (relationship.kind =='belongsTo'){
-					relationshipData.keys = [name];
+            currentValue.addObjects(this.store.peekAll(relationship.belongsToType).filter(model => {
+                return originalValueIds.contains(model.id)
+            }));
+        }
 
-					if (relationshipData.managed){
-						relationshipData.keys.push(`${name}.isDirty`);
-					}
+        if (isRelationshipManaged(relationship)){
+            currentValue.forEach( model => {
+                if (model.get('isDirty')){
+                    model.rollback();
+                }
+            })
+        }
+    },
 
-				} else {
-					throw new Error(`this relationship type is not supported ${relationship.kind}`);
-				}
-				related.addObject(relationshipData);	
-			}
-		});
+    _defineRelationshipComputedProperty: Ember.on('init', function(){
+        const related = Ember.A();
 
-		if (!Ember.isEmpty(related)){
-			Ember.defineProperty(this, '_hasDirtyRelationships', Ember.computed.apply(null, [...flatten(related.mapBy('keys')), function(){
-				return this._isAtLeastOneBelongsToDirty(related) || this._isAtLeastOneHasManyDirty(related);
-			}]));
-		}
-	}),
+        this.eachRelationship((name, relationship) => {
+            if (relationship.options.referenced || relationship.options.managed){
+                if (!relationship.options.async){
+                    throw new Error('Managed relationships mixin works only with async relationships');
+                }
 
-	_isAtLeastOneBelongsToDirty(relationships){
-		let belongsTos = relationships.filterBy('kind', 'belongsTo');
-		let belongsToRelations = belongsTos.map((r) => this.belongsTo(r.name).belongsToRelationship);
+                let relationshipData = {
+                    name: name,
+                    kind: relationship.kind,
+                    managed: Boolean(relationship.options.managed)
+                }
 
-		//We filter out the ones which are not loaded yet, because there cannot be a change from the user side 
-		let belongsToLoadedRelations = Ember.A(belongsToRelations).filterBy('hasLoaded', true);
+                if (relationship.kind == 'hasMany'){
+                    relationshipData.keys = [`${name}.[]`];
 
-		return Ember.A(belongsToLoadedRelations).any((relation) => this._isBelongsToDirty(relation));
-	},
+                    if (relationshipData.managed){
+                        relationshipData.keys.push(`${name}.@each.isDirty`);
+                    }
 
-	_isAtLeastOneHasManyDirty(relationships){
-		let hasManys = relationships.filterBy('kind', 'hasMany');
-		let hasManyRelations = hasManys.map((r) => this.hasMany(r.name).hasManyRelationship);
+                } else if (relationship.kind =='belongsTo'){
+                    relationshipData.keys = [name];
 
-		//We filter out the ones which are not loaded yet, because there cannot be a change from the user side 
-		let hasManyLoadedRelations = Ember.A(hasManyRelations).filterBy('hasLoaded', true);
+                    if (relationshipData.managed){
+                        relationshipData.keys.push(`${name}.isDirty`);
+                    }
 
-		return Ember.A(hasManyLoadedRelations).any((relation) => this._isHasManyDirty(relation));
+                } else {
+                    throw new Error(`this relationship type is not supported ${relationship.kind}`);
+                }
+                related.addObject(relationshipData);
+            }
+        });
 
-	},
+        if (!Ember.isEmpty(related)){
+            Ember.defineProperty(this, '_hasDirtyRelationships', Ember.computed.apply(null, [...flatten(related.mapBy('keys')), function(){
+                return this._isAtLeastOneBelongsToDirty(related) || this._isAtLeastOneHasManyDirty(related);
+            }]));
+        }
+    }),
 
-	_isBelongsToDirty(belongsToRelationship){
-		//Working just on async relations 
-	 	let currentValue = this.get(belongsToRelationship.key).content;
-	 	
-	 	function isReferenceChanged(){
-	 		if (belongsToRelationship.canonicalState){
-		 		return !currentValue || belongsToRelationship.canonicalState.id !== currentValue.get('id') ;
-		 	} else {
-		 		return Boolean(currentValue);
-		 	}
-	 	}
+    _isAtLeastOneBelongsToDirty(relationships){
+        let belongsTos = relationships.filterBy('kind', 'belongsTo');
+        let belongsToRelations = belongsTos.map((r) => this.belongsTo(r.name).belongsToRelationship);
 
-	 	function isTheManegedEntityDirty(){
-	 		if (!currentValue){
-	 			return false;
-	 		}
-	 		return currentValue.get('isDirty');
-	 	}
-		
-		return isRelationshipManaged(belongsToRelationship) ? isReferenceChanged() || isTheManegedEntityDirty() : isReferenceChanged();
-	},
+        //We filter out the ones which are not loaded yet, because there cannot be a change from the user side
+        let belongsToLoadedRelations = Ember.A(belongsToRelations).filterBy('hasLoaded', true);
 
-	_isHasManyDirty(hasManyRelationship){
-		//Working just on async relations 
-	 	let currentValue = this.get(hasManyRelationship.key).content;
-	 	
-	 	function isReferenceChanged(){
-	 		return hasManyRelationship.canonicalState.length !== currentValue.length || Ember.A(hasManyRelationship.canonicalState).any((e, i) => e === currentValue[i]);
-	 	}
+        return Ember.A(belongsToLoadedRelations).any((relation) => this._isBelongsToDirty(relation));
+    },
 
-	 	function isTheManegedEntityDirty(){
-	 		return currentValue.any(model => model.get('isDirty') );
-	 	}
-	 	return isRelationshipManaged(hasManyRelationship) ? isReferenceChanged() || isTheManegedEntityDirty() : isReferenceChanged();
+    _isAtLeastOneHasManyDirty(relationships){
+        let hasManys = relationships.filterBy('kind', 'hasMany');
+        let hasManyRelations = hasManys.map((r) => this.hasMany(r.name).hasManyRelationship);
 
-	 	
-	},
+        //We filter out the ones which are not loaded yet, because there cannot be a change from the user side
+        let hasManyLoadedRelations = Ember.A(hasManyRelations).filterBy('hasLoaded', true);
 
-	
+        return Ember.A(hasManyLoadedRelations).any((relation) => this._isHasManyDirty(relation));
 
+    },
+
+    _isBelongsToDirty(belongsToRelationship){
+        //Working just on async relations
+        let currentValue = this.get(belongsToRelationship.key).content;
+
+        function isReferenceChanged(){
+            if (belongsToRelationship.canonicalState){
+                return !currentValue || belongsToRelationship.canonicalState.id !== currentValue.get('id') ;
+            } else {
+                return Boolean(currentValue);
+            }
+        }
+
+        function isTheManegedEntityDirty(){
+            if (!currentValue){
+                return false;
+            }
+            return currentValue.get('isDirty');
+        }
+
+        return isRelationshipManaged(belongsToRelationship) ? isReferenceChanged() || isTheManegedEntityDirty() : isReferenceChanged();
+    },
+
+    _isHasManyDirty(hasManyRelationship){
+        //Working just on async relations
+        let currentValue = this.get(hasManyRelationship.key).content;
+
+        function isReferenceChanged(){
+            return hasManyRelationship.canonicalState.length !== currentValue.length || Ember.A(hasManyRelationship.canonicalState).any((e, i) => e === currentValue[i]);
+        }
+
+        function isTheManegedEntityDirty(){
+            return currentValue.any(model => model.get('isDirty') );
+        }
+        return isRelationshipManaged(hasManyRelationship) ? isReferenceChanged() || isTheManegedEntityDirty() : isReferenceChanged();
+
+
+    },
 });

@@ -5,7 +5,7 @@ import ManagedRelationshipsMixin from 'ember-managed-relationships/managed-relat
 
 export default Model.extend(ManagedRelationshipsMixin, {
   name:   attr     ('string'),
-  major: belongsTo('class', {inverse: null, referenced: true}),
-  favourite: belongsTo('class', {inverse: null, managed: true}),
+  major: belongsTo('class', {inverse: null, async: true, referenced: true}),
+  favourite: belongsTo('class', {inverse: null, async:true, managed: true}),
   oldMajor: belongsTo('class', {inverse: null})
 });
