@@ -51,7 +51,6 @@ export default Ember.Mixin.create({
 
     _commitManagedBelongsTo(name){
         let currentValue = this.get(name).content;
-        debugger;
         if (currentValue && currentValue._commitModelAndManagedRelationships){
             currentValue._commitModelAndManagedRelationships(true);
         }
