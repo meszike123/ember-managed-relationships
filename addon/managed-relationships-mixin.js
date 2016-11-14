@@ -32,8 +32,8 @@ export default Ember.Mixin.create({
     _commitModelAndManagedRelationships(commitThisModel = false){
         if (commitThisModel){
         	this._internalModel.adapterWillCommit();
+            this._internalModel.updateChangedAttributes();
             this._internalModel.adapterDidCommit();
-            this._internalModel.flushChangedAttributes();
         }
 
         this.eachRelationship((name, relationship) => {
