@@ -1,4 +1,4 @@
-import Ember from 'ember';
+ import Ember from 'ember';
 import DS from 'ember-data';
 
 export default function(){
@@ -10,7 +10,6 @@ export default function(){
 		rollback(){
 			this.rollbackAttributes();
 
-		},
-
+		}
 	});	
 }

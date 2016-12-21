@@ -27,6 +27,7 @@ export default Ember.Mixin.create({
         })
     },
 
+
     /* private API */
 
     _commitModelAndManagedRelationships(commitThisModel = false){
@@ -48,6 +49,10 @@ export default Ember.Mixin.create({
                 }
             }
         });
+
+        // Invalidate all caches for managed and referenced relations
+        this._invalidateHasDirtyRelationships();
+
     },
 
     _commitManagedBelongsTo(name){
@@ -150,14 +155,14 @@ export default Ember.Mixin.create({
                 }
 
                 if (relationship.kind == 'hasMany'){
-                    relationshipData.keys = [`${name}.[]`];
+                    relationshipData.keys = [`${name}.[]`, '_invalidateCachedValue'];
 
                     if (relationshipData.managed){
                         relationshipData.keys.push(`${name}.@each.isDirty`);
                     }
 
                 } else if (relationship.kind =='belongsTo'){
-                    relationshipData.keys = [name];
+                    relationshipData.keys = [name, '_invalidateCachedValue'];
 
                     if (relationshipData.managed){
                         relationshipData.keys.push(`${name}.isDirty`);
@@ -235,4 +240,10 @@ export default Ember.Mixin.create({
 
 
     },
+
+    _invalidateCachedValue: false,
+
+    _invalidateHasDirtyRelationships(){
+        this.toggleProperty('_invalidateCachedValue');
+    }
 });
