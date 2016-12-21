@@ -176,7 +176,7 @@ export default Ember.Mixin.create({
         });
 
         if (!Ember.isEmpty(related)){
-            Ember.defineProperty(this, '_hasDirtyRelationships', Ember.computed.apply(null, [...flatten(related.mapBy('keys'), '_invalidateCachedValue'), function(){
+            Ember.defineProperty(this, '_hasDirtyRelationships', Ember.computed.apply(null, [...flatten(related.mapBy('keys')), '_invalidateCachedValue', function(){
                 return this._isAtLeastOneBelongsToDirty(related) || this._isAtLeastOneHasManyDirty(related);
             }]));
         }
