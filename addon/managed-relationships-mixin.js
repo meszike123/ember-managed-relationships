@@ -155,14 +155,14 @@ export default Ember.Mixin.create({
                 }
 
                 if (relationship.kind == 'hasMany'){
-                    relationshipData.keys = [`${name}.[]`, '_invalidateCachedValue'];
+                    relationshipData.keys = [`${name}.[]`];
 
                     if (relationshipData.managed){
                         relationshipData.keys.push(`${name}.@each.isDirty`);
                     }
 
                 } else if (relationship.kind =='belongsTo'){
-                    relationshipData.keys = [name, '_invalidateCachedValue'];
+                    relationshipData.keys = [name];
 
                     if (relationshipData.managed){
                         relationshipData.keys.push(`${name}.isDirty`);
@@ -176,7 +176,7 @@ export default Ember.Mixin.create({
         });
 
         if (!Ember.isEmpty(related)){
-            Ember.defineProperty(this, '_hasDirtyRelationships', Ember.computed.apply(null, [...flatten(related.mapBy('keys')), function(){
+            Ember.defineProperty(this, '_hasDirtyRelationships', Ember.computed.apply(null, [...flatten(related.mapBy('keys'), '_invalidateCachedValue'), function(){
                 return this._isAtLeastOneBelongsToDirty(related) || this._isAtLeastOneHasManyDirty(related);
             }]));
         }
