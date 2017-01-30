@@ -230,7 +230,7 @@ export default Ember.Mixin.create({
         let currentValue = this.get(hasManyRelationship.key).content;
 
         function isReferenceChanged(){
-            return hasManyRelationship.canonicalState.length !== currentValue.length || Ember.A(hasManyRelationship.canonicalState).any((e, i) => e === currentValue[i]);
+            return hasManyRelationship.canonicalState.length !== currentValue.length || Ember.A(hasManyRelationship.canonicalState).any((e, i) => e !== currentValue.currentState[i]);
         }
 
         function isTheManegedEntityDirty(){
