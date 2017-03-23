@@ -228,7 +228,7 @@ export default Ember.Mixin.create({
     _isHasManyDirty(hasManyRelationship){
         //Working just on async relations
         let currentValue = this.get(hasManyRelationship.key).content;
-        const ordered = hasManyRelationship.options.ordered;
+        const ordered = hasManyRelationship.relationshipMeta.options.ordered;
 
         function isReferenceChanged(){
             if (hasManyRelationship.canonicalState.length !== currentValue.length){
