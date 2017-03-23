@@ -228,9 +228,20 @@ export default Ember.Mixin.create({
     _isHasManyDirty(hasManyRelationship){
         //Working just on async relations
         let currentValue = this.get(hasManyRelationship.key).content;
+        const ordered = hasManyRelationship.options.ordered;
 
         function isReferenceChanged(){
-            return hasManyRelationship.canonicalState.length !== currentValue.length || Ember.A(hasManyRelationship.canonicalState).any((e, i) => e !== currentValue.currentState[i]);
+            if (hasManyRelationship.canonicalState.length !== currentValue.length){
+                return true
+            }
+
+            if (ordered){
+                return Ember.A(hasManyRelationship.canonicalState).any((e, i) => e !== currentValue.currentState[i]);
+            } else {
+                const currentState = Ember.A(currentValue.currentState);
+                return Ember.A(hasManyRelationship.canonicalState).any((e, i) => !currentState.contains(e));
+            }
+
         }
 
         function isTheManegedEntityDirty(){
