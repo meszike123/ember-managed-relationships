@@ -67,8 +67,10 @@ export default Ember.Mixin.create({
         if (currentValue){
             currentValue.toArray().forEach((model) => {
                 if (model && model._commitModelAndManagedRelationships){
-                    let commitThisModel = !model.get('isNew') || !model.get('isLoading') || !noCommitNew
-                    model._commitModelAndManagedRelationships(commitThisModel);
+                    if (!model.get('isLoading')){
+                        let commitThisModel = !model.get('isNew') || !noCommitNew
+                        model._commitModelAndManagedRelationships(commitThisModel);
+                    }
                 }
             });
         }
