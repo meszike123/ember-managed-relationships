@@ -40,7 +40,7 @@ export default Ember.Mixin.create({
         this.eachRelationship((name, relationship) => {
             if (relationship.options.managed){
                 if (relationship.kind == 'hasMany'){
-                    this._commitManagedHasMany(name);
+                    this._commitManagedHasMany(name, relationship.options.noCommitNew);
                 } else if (relationship.kind =='belongsTo'){
                     this._commitManagedBelongsTo(name);
 
@@ -62,12 +62,13 @@ export default Ember.Mixin.create({
         }
     },
 
-    _commitManagedHasMany(name){
+    _commitManagedHasMany(name, noCommitNew){
         let currentValue = this.get(name).content;
         if (currentValue){
             currentValue.toArray().forEach((model) => {
                 if (model && model._commitModelAndManagedRelationships){
-                    model._commitModelAndManagedRelationships(true)
+                    var commitThisModel = !model.get('isNew') || !noCommitNew
+                    model._commitModelAndManagedRelationships(commitThisModel);
                 }
             });
         }
