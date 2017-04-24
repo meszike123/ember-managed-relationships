@@ -1,4 +1,4 @@
-# Managed-relationships
+# Ember Managed Relationships
 
 This ember addons tries to solve the problem, that ember-data is not handling relationship management out of box very good.
 
@@ -73,5 +73,21 @@ student.get('isDirty') // true - the reference to the favoriteSubject has change
 ```
 ## ReadOnly relationships
 In thesee relationships we dont care if the relationship changes or not 
+
+# How to use
+Right now it is not possible to install the addon throu ember:install, so if you would like to use this just insert a line to your package.json pointing to master or a tag in this repository
+
+## Default API changes
+`.isDirty` and `rollback()` will be defined on every Model. 
+
+# Limitation
+This plugin is not solving how to handle creation of new 'managed' models as Ember is not capable mapping newly created models, to models with ids. They are multiple ways how to solve this:
+1. For the managed models use UUID as id so you can generate id's on frontend
+2. unload the newly created models after save from the store
+...
+
+# Info
+This package is soon going to be moved and this package will be deprecated so please check back for updates  
+
 
 
