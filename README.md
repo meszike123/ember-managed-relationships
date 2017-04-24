@@ -77,8 +77,33 @@ In thesee relationships we dont care if the relationship changes or not
 # How to use
 Right now it is not possible to install the addon throu ember:install, so if you would like to use this just insert a line to your package.json pointing to master or a tag in this repository
 
+## Mixin
+Just add the mixin to the model where you want to have use the functionality
+```
+import DS from 'ember-data';
+import ManagedMixin from 'ember-managed-relationships/managed-relationships-mixin';
+
+export default DS.Model.extend(ManagedMixin, {
+...
+});
+
+```
+### Options
+These options could be used in the options hash to `hasMany()` and `belongsTo()` definitions
+
+ - `referenced:true` - a referenced relationship
+ - `managed: true` - a managed relationship
+ - `ordered: true` - when the order of the hasMany relationship matters
+ - `noCommitNew: true` - when we dont want to commit a relationship to the store, after it is created on backend, because we are removing it manually, only for hasMany
+
 ## Default API changes
 `.isDirty` and `rollback()` will be defined on every Model. 
+
+### isDirty
+- The defaultly `isDirty` property is defined as a computed property, which returns the value of `hasDirtyAttributes` property
+
+### rollback
+- `rollback()` on the model will defaultly call the `this.rollbackAttributes()` on the model
 
 # Limitation
 This plugin is not solving how to handle creation of new 'managed' models as Ember is not capable mapping newly created models, to models with ids. They are multiple ways how to solve this:
