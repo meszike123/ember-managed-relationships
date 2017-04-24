@@ -11,16 +11,16 @@ In Ember.js it is possible to define hasMany and belongsTo relationships, but is
 # How is this working
 Basically there are 3 types of relationships: 
 
-1. Referenced relationships
+## Referenced relationships
 These relationships are most common, what really happens here is that we want to check wheather a reference to the model has changed, while we dont really care wheather the referced model has really changed
 
 ```
-Subject = Model.extend({
+Subject = Model.extend(Managed, {
     name: attr('string')
 })
 
-Student = Model.extend({
-   favouriteSubject: belongsTo('subject')
+Student = Model.extend(Managed, {
+   favouriteSubject: belongsTo('subject', {referenced: true})
 })
 
 student.get('favoriteSubject.id') == 1 //true
@@ -40,9 +40,38 @@ favoriteSubject.get('isDirty') // true - the value has changed
 
 student2.get('isDirty') // false - the reference to the favoriteSubject has not changed 
 ```
+## Managed relationships
+These are the relationships when we are interested to know wheather not just the references have changed, but are interested in the changed happening on objects too
+```
+Subject = Model.extend(Managed, {
+    name: attr('string')
+})
 
- 
- 
+Student = Model.extend(Managed, {
+   favouriteSubject: belongsTo('subject', {managed: true})
+})
 
+student2.get('favoriteSubject.name') == 'Math' //true
+student2.get('isDirty') // false
+
+favoriteSubject = student2.get('favoriteSubject');
+favoriteSubject.get('isDirty') // false
+
+favoriteSubject.set('name', 'English') //Setting different name
+favoriteSubject.get('isDirty') // true - the value has changed
+
+student2.get('isDirty') // true - the reference to the favoriteSubject has not changed, but the value has changed and this dirties the whole parent model
+
+-------------------------------
+
+student.get('favoriteSubject.id') == 1 //true
+student.get('isDirty') // false
+
+student.set('favoriteSubject', secondSubject) // has id '2' 
+student.get('isDirty') // true - the reference to the favoriteSubject has changed - managed models take into account refence changes too
+
+```
+## ReadOnly relationships
+In thesee relationships we dont care if the relationship changes or not 
 
 
